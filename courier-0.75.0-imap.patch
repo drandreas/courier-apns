@@ -1,0 +1,148 @@
+diff -ur courier-0.75.0/libs/imap/imapd.c courier-0.75.1/libs/imap/imapd.c
+--- libs/imap/imapd.c	2015-03-04 01:59:17.000000000 +0100
++++ libs/imap/imapd.c	2016-05-05 18:16:40.264961147 +0200
+@@ -5559,6 +5559,120 @@
+ 		return 0;
+ 	}
+ 
++	if (strcmp(curtoken->tokenbuf, "XAPPLEPUSHSERVICE") == 0)
++	{
++		//Note aps-topic is the subject of the certificate
++		//  e.g. com.apple.mail.XServer.e0205478-5a2f-464e-bc31-3643044d6e9d
++		const char *p = getenv("IMAP_XAPPLEPUSHSERVICE_TOPIC");
++		if (!p || strlen(p) == 0)
++		{
++			fprintf(stderr, "ERR: Error reading IMAP_XAPPLEPUSHSERVICE_TOPIC\n");
++			writes(tag);
++			writes(" NO Registration failed.\r\n");
++			return (0);
++		}
++
++		//Pars data
++		char account_id[128] = {0};
++		char device_token[128] = {0};
++		char mailbox[128] = {0};
++		int  mailbox_pos = 0;
++		while ((curtoken=nexttoken())->tokentype != IT_EOL)
++		{
++			if (strcmp(curtoken->tokenbuf, "APS-VERSION") == 0 &&
++			     (curtoken=nexttoken_nouc())->tokentype != IT_EOL)
++			{
++                                //pass
++			} else
++			if (strcmp(curtoken->tokenbuf, "APS-ACCOUNT-ID") == 0 &&
++			      (curtoken=nexttoken_nouc())->tokentype != IT_EOL)
++			{
++				strncpy(account_id, curtoken->tokenbuf, sizeof(account_id));
++			} else
++			if (strcmp(curtoken->tokenbuf, "APS-DEVICE-TOKEN") == 0 &&
++			     (curtoken=nexttoken_nouc())->tokentype != IT_EOL)
++			{
++				strncpy(device_token, curtoken->tokenbuf, sizeof(device_token));
++			} else
++			if (strcmp(curtoken->tokenbuf, "APS-SUBTOPIC") == 0 &&
++			     (curtoken=nexttoken_nouc())->tokentype != IT_EOL)
++			{
++				//pass
++			} else
++			if (strcmp(curtoken->tokenbuf, "MAILBOXES") == 0)
++			{
++				while((curtoken=nexttoken_nouc())->tokentype != IT_EOL)
++				{
++					if(curtoken->tokentype == IT_LPAREN ||
++					     curtoken->tokentype == IT_RPAREN)
++					{
++						continue;
++					}
++					int ret = snprintf(&mailbox[mailbox_pos],
++					                   sizeof(mailbox) - mailbox_pos,
++					                   mailbox_pos ? ", \"%s\"" : " \"%s\"",
++					                   curtoken->tokenbuf);
++					if(ret < 0 || ret > sizeof(mailbox) - mailbox_pos)
++					{
++						fprintf(stderr, "ERR: XAPPLEPUSHSERVICE to long MAILBOX list\n");
++					}
++					else
++					{
++						mailbox_pos += ret;
++					}
++					//Confirm subscription on the fly
++					writes("* XAPPLEPUSHSERVICE \"mailbox\" \"");
++					writes(curtoken->tokenbuf);
++					writes("\"\r\n");
++				}
++				break;
++			}
++
++		}
++		if(strlen(account_id) == 0 || strlen(device_token) == 0)
++		{
++			fprintf(stderr, "ERR: Invalid aps-accoun-id or aps-device-token\n");
++			writes(tag);
++			writes(" NO Registration failed.\r\n");
++			return (0);
++		}
++
++		//Create folder
++		DIR *dir = opendir("./.push");
++		if(dir == NULL)
++		{
++			mkdir("./.push", 0700);
++		}
++		else
++		{
++			closedir(dir);
++		}
++
++		//Store data
++		char fn[128] = {0};
++		snprintf(fn, sizeof(fn), "./.push/%s", device_token);
++		FILE *fp = fopen(fn, "w");
++		if(fp == NULL)
++		{
++			fprintf(stderr, "ERR: Error opening file %s\n", fn);
++			writes(tag);
++			writes(" NO Registration failed.\r\n");
++			return (0);
++		}
++		fprintf(fp, 
++		        "{ \"aps-account-id\": \"%s\", \"aps-device-token\": \"%s\", \"mailboxes\": [%s ] }\n",
++		        account_id, device_token, mailbox);
++		fclose(fp);
++
++		//Return Confirmation
++		writes("* XAPPLEPUSHSERVICE \"aps-version\" \"2\" \"aps-topic\" \"");
++		writes(p);
++		writes("\"\r\n");
++		writes(tag);
++		writes(" OK XAPPLEPUSHSERVICE completed.\r\n");
++		return (0);
++	}
++
+ 	/* mailbox commands */
+ 
+ 	if (current_mailbox == 0)	return (-1);
+diff -ur courier-0.75.0/libs/imap/imapd.dist.in courier-0.75.1/libs/imap/imapd.dist.in
+--- libs/imap/imapd.dist.in	2016-05-04 23:01:54.673844023 +0200
++++ libs/imap/imapd.dist.in	2016-05-05 21:06:11.988544916 +0200
+@@ -105,10 +105,18 @@
+ # If you have properly configured Courier to use CRAM-MD5, CRAM-SHA1, or
+ # CRAM-SHA256 authentication (see INSTALL), set IMAP_CAPABILITY as follows:
+ #
+-# IMAP_CAPABILITY="IMAP4rev1 UIDPLUS CHILDREN NAMESPACE THREAD=ORDEREDSUBJECT THREAD=REFERENCES SORT QUOTA AUTH=CRAM-MD5 AUTH=CRAM-SHA1 AUTH=CRAM-SHA256 IDLE"
++# IMAP_CAPABILITY="IMAP4rev1 UIDPLUS CHILDREN NAMESPACE THREAD=ORDEREDSUBJECT THREAD=REFERENCES SORT QUOTA AUTH=CRAM-MD5 AUTH=CRAM-SHA1 AUTH=CRAM-SHA256 IDLE XAPPLEPUSHSERVICE"
+ #
+ 
+-IMAP_CAPABILITY="IMAP4rev1 UIDPLUS CHILDREN NAMESPACE THREAD=ORDEREDSUBJECT THREAD=REFERENCES SORT QUOTA IDLE"
++IMAP_CAPABILITY="IMAP4rev1 UIDPLUS CHILDREN NAMESPACE THREAD=ORDEREDSUBJECT THREAD=REFERENCES SORT QUOTA IDLE XAPPLEPUSHSERVICE"
++
++##NAME: IMAP_XAPPLEPUSHSERVICE_TOPIC:1
++#
++# IMAP_XAPPLEPUSHSERVICE_TOPIC is the subject of the certificate
++# e.g. com.apple.mail.XServer.e0205478-5a2f-464e-bc31-3643044d6e9d
++#
++
++IMAP_XAPPLEPUSHSERVICE_TOPIC=""
+ 
+ ##NAME: KEYWORDS_CAPABILITY:0
+ #
