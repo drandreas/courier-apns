@@ -50,7 +50,7 @@ daemonize -p /var/run/courier/courierapns.pid  \
 ```
 - Patch Courier IMAP with `courier-0.75.0-imap.patch`, compile and install it.
 - Add `XAPPLEPUSHSERVICE` to `IMAP_CAPABILITY` in `/etc/courier/imapd`
-- Add `IMAP_XAPPLEPUSHSERVICE_TOPIC=YOUR_UID`
+- Add `IMAP_XAPPLEPUSHSERVICE_TOPIC=YOUR_UID` to `/etc/courier/imapd`
 - Resetart Courier IMAP and check if it is advertising `XAPPLEPUSHSERVICE`
 ```sh
 telnet localhost 143
@@ -61,20 +61,20 @@ Escape character is '^]'.
 ```
 - Add push to your mail delivery routine `/etc/courier/maildroprc`
 
-__netcat:__
+_with netcat:_
 ```
 # Push Notification...
 PUSH=`echo $HOME | nc.openbsd -U /var/run/courier/courierapns.socket`
 echo $PUSH
 ```
 
-__socat:__
+_with socat:_
 ```
 # Push Notification...
-PUSH=`echo /export/mailhome/andreas/ | socat /var/run/courier/courierapns.socket STDIN`
-#Note: echo $PUSH is not supported
+PUSH=`echo $HOME | socat /var/run/courier/courierapns.socket STDIN`
+# Note: echo $PUSH will not work with socat
 ```
-_Note:_ You might need to re-add your mail account to your iDevice for it to recognize push support.
+- You might need to re-add your mail account to your iDevice for it to recognize push support.
 
 ## Debugging
 - Courier-APNs is verbose. If you run into issues check `/var/log/syslog` and `/var/log/mail.log` for hints.
@@ -101,7 +101,7 @@ is a single line containing a path to a Maildir. The client can be as simple as 
 e.g. echo /path/to/maildir | nc.openbsd -U /var/run/courier/courierapns.socket.
 Flags:
       --help     Show context-sensitive help (also try --help-long and --help-man).
-  -s, --socket="/var/run/courier/apsn.socket"  
+  -s, --socket="/var/run/courier/courierapns.socket"
                  Path to use for Unix socket.
   -d, --syslog   Use Syslog instead of STDERR.
       --version  Show application version.
