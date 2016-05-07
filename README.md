@@ -74,13 +74,15 @@ _with socat:_
 PUSH=`echo $HOME | socat /var/run/courier/courierapns.socket STDIN`
 # Note: echo $PUSH will not work with socat
 ```
-- You might need to re-add your mail account to your iDevice for it to recognize push support.
+- Reboot your iDevice and manually refresh your Inbox. Push support should now be available in Settings.
+  In rare cases you might need to re-add your mail account to your iDevice for it to recognize push support.
 
 ## Debugging
 - Courier-APNs is verbose. If you run into issues check `/var/log/syslog` and `/var/log/mail.log` for hints.
 - Courier-APNs stores its data in `$Maildir/.push/`. For each device a separate file is created e.g.
 ```
 {
+   "aps-version": 2,
    "aps-account-id": "0715A26B-CA09-4730-A419-793000CA982E", 
    "aps-device-token": "2918390218931890821908309283098109381029309829018310983092892829", 
    "mailboxes": [ "INBOX", 

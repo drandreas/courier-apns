@@ -1,7 +1,7 @@
 diff -ur courier-0.75.0/libs/imap/imapd.c courier-0.75.1/libs/imap/imapd.c
 --- libs/imap/imapd.c	2015-03-04 01:59:17.000000000 +0100
 +++ libs/imap/imapd.c	2016-05-05 18:16:40.264961147 +0200
-@@ -5559,6 +5559,120 @@
+@@ -5559,6 +5559,138 @@
  		return 0;
  	}
  
@@ -19,16 +19,25 @@ diff -ur courier-0.75.0/libs/imap/imapd.c courier-0.75.1/libs/imap/imapd.c
 +		}
 +
 +		//Pars data
++		int aps_version = 0;
 +		char account_id[128] = {0};
 +		char device_token[128] = {0};
-+		char mailbox[128] = {0};
++		char mailbox[256] = {0};
 +		int  mailbox_pos = 0;
 +		while ((curtoken=nexttoken())->tokentype != IT_EOL)
 +		{
 +			if (strcmp(curtoken->tokenbuf, "APS-VERSION") == 0 &&
 +			     (curtoken=nexttoken_nouc())->tokentype != IT_EOL)
 +			{
-+                                //pass
++				aps_version = atoi(curtoken->tokenbuf);
++				if(aps_version < 1 || 2 < aps_version)
++				{
++					fprintf(stderr, "ERR: Unsuported aps-version %s\n",
++					        curtoken->tokenbuf);
++					writes(tag);
++					writes(" NO Registration failed.\r\n");
++					return (0);
++				}
 +			} else
 +			if (strcmp(curtoken->tokenbuf, "APS-ACCOUNT-ID") == 0 &&
 +			      (curtoken=nexttoken_nouc())->tokentype != IT_EOL)
@@ -41,16 +50,23 @@ diff -ur courier-0.75.0/libs/imap/imapd.c courier-0.75.1/libs/imap/imapd.c
 +				strncpy(device_token, curtoken->tokenbuf, sizeof(device_token));
 +			} else
 +			if (strcmp(curtoken->tokenbuf, "APS-SUBTOPIC") == 0 &&
-+			     (curtoken=nexttoken_nouc())->tokentype != IT_EOL)
++			     (curtoken=nexttoken())->tokentype != IT_EOL)
 +			{
-+				//pass
++				if(strcmp(curtoken->tokenbuf, "COM.APPLE.MOBILEMAIL") != 0)
++				{
++					fprintf(stderr, "ERR: Unexpected aps-subtopic %s\n",
++					               curtoken->tokenbuf);
++					writes(tag);
++					writes(" NO Registration failed.\r\n");
++					return (0);
++				}
 +			} else
 +			if (strcmp(curtoken->tokenbuf, "MAILBOXES") == 0)
 +			{
-+				while((curtoken=nexttoken_nouc())->tokentype != IT_EOL)
++				while((curtoken=nexttoken_nouc())->tokentype != IT_EOL &&
++				     curtoken->tokentype != IT_RPAREN)
 +				{
-+					if(curtoken->tokentype == IT_LPAREN ||
-+					     curtoken->tokentype == IT_RPAREN)
++					if(curtoken->tokentype == IT_LPAREN)
 +					{
 +						continue;
 +					}
@@ -71,7 +87,6 @@ diff -ur courier-0.75.0/libs/imap/imapd.c courier-0.75.1/libs/imap/imapd.c
 +					writes(curtoken->tokenbuf);
 +					writes("\"\r\n");
 +				}
-+				break;
 +			}
 +
 +		}
@@ -106,12 +121,15 @@ diff -ur courier-0.75.0/libs/imap/imapd.c courier-0.75.1/libs/imap/imapd.c
 +			return (0);
 +		}
 +		fprintf(fp, 
-+		        "{ \"aps-account-id\": \"%s\", \"aps-device-token\": \"%s\", \"mailboxes\": [%s ] }\n",
-+		        account_id, device_token, mailbox);
++		        "{ \"aps-version\": %i, \"aps-account-id\": \"%s\","
++			" \"aps-device-token\": \"%s\", \"mailboxes\": [%s ] }\n",
++		        aps_version, account_id, device_token, mailbox);
 +		fclose(fp);
 +
 +		//Return Confirmation
-+		writes("* XAPPLEPUSHSERVICE \"aps-version\" \"2\" \"aps-topic\" \"");
++		writes("* XAPPLEPUSHSERVICE \"aps-version\" \"");
++		writes(aps_version == 1 ? "1" : "2");
++		writes("\" \"aps-topic\" \"");
 +		writes(p);
 +		writes("\"\r\n");
 +		writes(tag);
