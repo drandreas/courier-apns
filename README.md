@@ -102,11 +102,12 @@ This deamon supports persistent connections to APNs. The expected input on the U
 is a single line containing a path to a Maildir. The client can be as simple as a piped echo
 e.g. echo /path/to/maildir | nc.openbsd -U /var/run/courier/courierapns.socket.
 Flags:
-      --help     Show context-sensitive help (also try --help-long and --help-man).
+      --help        Show context-sensitive help (also try --help-long and --help-man).
   -s, --socket="/var/run/courier/courierapns.socket"
-                 Path to use for Unix socket.
-  -d, --syslog   Use Syslog instead of STDERR.
-      --version  Show application version.
+                    Path to use for Unix socket.
+  -d, --syslog      Use Syslog instead of STDERR.
+  -c, --concurrent  Enable concurrent request handling.
+      --version     Show application version.
 
 Args:
   <crt>  Path to certificate file.

@@ -27,6 +27,7 @@ var (
 	optSock = kingpin.Flag("socket", "Path to use for Unix socket.").
 		Default("/var/run/courier/courierapns.socket").Short('s').String()
 	optSyLog = kingpin.Flag("syslog", "Use Syslog instead of STDERR.").Short('d').Bool()
+	optConc  = kingpin.Flag("concurrent", "Enable concurrent request handling.").Short('c').Bool()
 	topic    string //Topic is extracted from the certificate during startup
 )
 
@@ -193,7 +194,11 @@ func main() {
 		if err != nil {
 			log.Fatal("Error:", err)
 		} else {
-			HandleRequest(conn, client)
+			if *optConc {
+				go HandleRequest(conn, client)
+			} else {
+				HandleRequest(conn, client)
+			}
 		}
 	}
 }
