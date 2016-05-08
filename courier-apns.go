@@ -72,7 +72,11 @@ func HandleRequest(conn net.Conn, client *apns2.Client) {
 			continue
 		}
 		device := Device{}
-		json.Unmarshal(data, &device)
+		err = json.Unmarshal(data, &device)
+		if err != nil {
+			log.Print("Error:", err)
+			continue
+		}
 
 		// perform push
 		notification := &apns2.Notification{
