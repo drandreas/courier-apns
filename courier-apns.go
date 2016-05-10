@@ -82,7 +82,7 @@ func HandleRequest(conn net.Conn, client *apns2.Client) {
 		notification := &apns2.Notification{
 			Topic:       topic,
 			DeviceToken: device.ApsDeviceToken,
-			Expiration:  time.Now().Add(time.Hour),
+			Expiration:  time.Now().Add(24 * time.Hour * 7),
 			Payload: fmt.Sprintf("{ \"aps\": { \"account-id\": \"%s\" }}",
 				device.ApsAccountId),
 		}
@@ -96,7 +96,8 @@ func HandleRequest(conn net.Conn, client *apns2.Client) {
 			log.Printf("  Device: %s, Code: %v, Reason: %v\n", device.ApsDeviceToken[0:8],
 				res.StatusCode, res.Reason)
 			// Remove file if device token is no longer active for the topic
-			if res.StatusCode == 410 {
+			if res.StatusCode == 400 ||
+				(res.StatusCode == 410 && file.ModTime().Before(res.Timestamp.Time)) {
 				err = os.Remove(path.Join(string(dir), ".push", file.Name()))
 				if err != nil {
 					log.Print("Error:", err)
