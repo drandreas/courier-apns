@@ -113,3 +113,8 @@ Args:
   <crt>  Path to certificate file.
   <key>  Path to private key file.
 ```
+
+## Sources
+ - https://github.com/st3fan/dovecot-xaps-daemon
+ - https://github.com/st3fan/dovecot-xaps-daemon/issues/46
+ - https://github.com/matthewpowell/pushnotify/issues/1
