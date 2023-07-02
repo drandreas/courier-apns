@@ -28,7 +28,7 @@ _Note:_ Courier-APNs assumes that all mail accounts share a single UID/GID i.e. 
   [Apples Push Certificates Portal](https://identity.apple.com).
 - Install Courier-APNs
 ```sh
-go get -u github.com/drandreas/courier-apns
+go install github.com/drandreas/courier-apns@latest
 ```
 - Launch Courier-APNs. It will display your UID. Keep it for later.
 ```
